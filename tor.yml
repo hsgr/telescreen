@@ -1,0 +1,43 @@
+- hosts: all
+
+  gather_facts: False
+  pre_tasks:
+  - name: install python 2 for ansible
+    become: true
+    raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+    changed_when: False
+  - setup: # aka gather_facts
+
+  tasks:
+  - name: Update and upgrade apt packages
+    become: true
+    apt:
+      upgrade: yes
+      update_cache: yes
+      cache_valid_time: 86400 #One day
+
+  - name: Install list of packages
+    become: true
+    apt: name={{item}} state=installed
+    with_items:
+         - tor
+
+  - copy:
+      src: torrc
+      dest: /etc/tor/torrc 
+      owner: root
+      group: root
+      mode: 664
+    become: yes
+
+  - name: enable service xorg and ensure it is not masked
+    systemd:
+      name: tor
+      enabled: yes
+      masked: no
+      state: restarted
+    become: yes
+    
+  - name: Run a command using a templated variable (always use quote filter to avoid injection)
+    become: yes
+    shell: cat {{ /var/lib/tor/ssh/host|quote }}
